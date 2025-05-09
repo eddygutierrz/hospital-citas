@@ -62,5 +62,8 @@ public class Cita {
         this.nombrePaciente = nombrePaciente;
     }
 
+    public boolean isCancelable() {
+        return LocalDateTime.now().isBefore(this.horarioConsulta);
+    }
     
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -64,5 +65,42 @@ public class CitaController {
         model.addAttribute("doctores", doctorRepository.findAll());
         model.addAttribute("consultorios", consultorioRepository.findAll());
         return "citas";
+    }
+
+    @GetMapping("/cancelar/{id}")
+    public String cancelarCita(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            citaService.cancelarCita(id);
+            redirectAttributes.addFlashAttribute("success", "Cita cancelada exitosamente");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/citas";
+    }
+
+    @GetMapping("/editar/{id}")
+    public String mostrarFormularioEdicion(@PathVariable Long id, Model model) {
+        Cita cita = citaService.obtenerCitaParaEdicion(id);
+        model.addAttribute("cita", cita);
+        model.addAttribute("doctores", doctorRepository.findAll());
+        model.addAttribute("consultorios", consultorioRepository.findAll());
+        return "form-cita-edicion";
+    }
+
+    @PostMapping("/editar/{id}")
+    public String procesarEdicion(
+        @PathVariable Long id,
+        @ModelAttribute Cita cita,
+        RedirectAttributes attrs) {
+        
+        try {
+            citaService.actualizarCita(id, cita);
+            attrs.addFlashAttribute("success", "Cita actualizada correctamente");
+        } catch (Exception e) {
+            attrs.addFlashAttribute("error", e.getMessage());
+            attrs.addFlashAttribute("cita", cita);
+            return "redirect:/citas/editar/" + id;
+        }
+        return "redirect:/citas";
     }
 }

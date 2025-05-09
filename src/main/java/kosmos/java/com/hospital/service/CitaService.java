@@ -111,26 +111,6 @@ public class CitaService {
         }
     }
     
-    // Método adicional para edición de citas
-    @Transactional
-    public void actualizarCita(Long id, Cita citaActualizada) {
-        Cita citaExistente = citaRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada"));
-        
-        // Validar solo si cambian los datos críticos
-        
-        if(!citaExistente.getHorarioConsulta().equals(citaActualizada.getHorarioConsulta())) {
-            crearCita(citaActualizada); // Reutiliza validaciones
-        }
-        
-        citaExistente.setConsultorio(citaActualizada.getConsultorio());
-        citaExistente.setDoctor(citaActualizada.getDoctor());
-        citaExistente.setHorarioConsulta(citaActualizada.getHorarioConsulta());
-        citaExistente.setNombrePaciente(citaActualizada.getNombrePaciente());
-        
-        citaRepository.save(citaExistente);
-    }
-
     public List<Cita> buscarCitas(LocalDate fecha, Long doctorId, Long consultorioId) {
         if (fecha != null || doctorId != null || consultorioId != null) {
             System.out.println("ConsultorioId = " + consultorioId);
@@ -144,4 +124,103 @@ public class CitaService {
         }
         return citaRepository.findAll();
     }
+
+    @Transactional
+    public void cancelarCita(Long citaId) {
+        Cita cita = citaRepository.findById(citaId)
+            .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada"));
+        
+        if (!cita.isCancelable()) {
+            throw new IllegalStateException("Solo se pueden cancelar citas futuras");
+        }
+        
+        citaRepository.delete(cita);
+    }
+
+    @Transactional
+    public void actualizarCita(Long id, Cita citaActualizada) {
+        Cita citaExistente = citaRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada"));
+        
+        validarEdicionPermitida(citaExistente);
+        aplicarValidaciones(citaActualizada, citaExistente.getId());
+        
+        actualizarCampos(citaExistente, citaActualizada);
+        citaRepository.save(citaExistente);
+    }
+
+    private void validarEdicionPermitida(Cita cita) {
+        if (cita.getHorarioConsulta().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("No se puede editar una cita pasada");
+        }
+    }
+
+    private void aplicarValidaciones(Cita cita, Long excludeId) {
+        validarDisponibilidadConsultorio(cita, excludeId);
+        validarDisponibilidadDoctor(cita, excludeId);
+        validarCitasPaciente(cita, excludeId);
+        validarMaxCitasDiarias(cita, excludeId);
+    }
+
+    private void validarDisponibilidadConsultorio(Cita cita, Long excludeId) {
+        LocalDateTime inicio = cita.getHorarioConsulta().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime fin = inicio.plusHours(1).minusNanos(1);
+        
+        boolean ocupado = citaRepository.existsByConsultorioAndHorarioBetweenExcludingId(
+            cita.getConsultorio(), inicio, fin, excludeId);
+        
+        if (ocupado) {
+            throw new ConflictException("Consultorio no disponible en este horario");
+        }
+    }
+
+    private void validarDisponibilidadDoctor(Cita cita, Long excludeId) {
+        LocalDateTime inicio = cita.getHorarioConsulta().truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime fin = inicio.plusHours(1).minusNanos(1);
+        
+        boolean ocupado = citaRepository.existsByDoctorAndHorarioBetweenExcludingId(
+            cita.getDoctor(), inicio, fin, excludeId);
+        
+        if (ocupado) {
+            throw new ConflictException("Doctor no disponible en este horario");
+        }
+    }
+
+    private void validarCitasPaciente(Cita cita, Long excludeId) {
+        LocalDateTime inicio = cita.getHorarioConsulta().minusHours(2);
+        LocalDateTime fin = cita.getHorarioConsulta().plusHours(2);
+        
+        List<Cita> citas = citaRepository.findByPacienteAndHorarioBetweenExcludingId(
+            cita.getNombrePaciente(), inicio, fin, excludeId);
+        
+        if (!citas.isEmpty()) {
+            throw new ConflictException("El paciente tiene citas cercanas");
+        }
+    }
+
+    private void validarMaxCitasDiarias(Cita cita, Long excludeId) {
+        LocalDate fecha = cita.getHorarioConsulta().toLocalDate();
+        Long count = citaRepository.countByDoctorAndFechaExcludingId(
+            cita.getDoctor(), fecha, excludeId);
+        
+        if (count >= 8) {
+            throw new ConflictException("Máximo 8 citas diarias por doctor");
+        }
+    }
+    
+    private void actualizarCampos(Cita existente, Cita actualizada) {
+        existente.setConsultorio(actualizada.getConsultorio());
+        existente.setDoctor(actualizada.getDoctor());
+        existente.setHorarioConsulta(actualizada.getHorarioConsulta());
+        existente.setNombrePaciente(actualizada.getNombrePaciente());
+    }
+
+    public Cita obtenerCitaParaEdicion(Long id) {
+        Cita cita = citaRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada"));
+        
+        validarEdicionPermitida(cita);
+        return cita;
+    }
+    
 }

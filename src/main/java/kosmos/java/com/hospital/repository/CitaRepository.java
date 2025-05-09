@@ -54,4 +54,44 @@ public interface CitaRepository extends JpaRepository <Cita, Long> {
         @Param("consultorioId") Long consultorioId,
         @Param("doctorId") Long doctorId);
         
+    
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE " +
+    "c.consultorio = :consultorio AND " +
+    "c.horarioConsulta BETWEEN :inicio AND :fin AND " +
+    "c.id != :excludeId")
+    boolean existsByConsultorioAndHorarioBetweenExcludingId(
+        @Param("consultorio") Consultorio consultorio,
+        @Param("inicio") LocalDateTime inicio,
+        @Param("fin") LocalDateTime fin,
+        @Param("excludeId") Long excludeId);
+    
+        @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE " +
+        "c.doctor = :doctor AND " +
+        "c.horarioConsulta BETWEEN :inicio AND :fin AND " +
+        "c.id != :excludeId")
+ boolean existsByDoctorAndHorarioBetweenExcludingId(
+     @Param("doctor") Doctor doctor,
+     @Param("inicio") LocalDateTime inicio,
+     @Param("fin") LocalDateTime fin,
+     @Param("excludeId") Long excludeId);
+
+ @Query("SELECT c FROM Cita c WHERE " +
+        "c.nombrePaciente = :paciente AND " +
+        "c.horarioConsulta BETWEEN :inicio AND :fin AND " +
+        "c.id != :excludeId")
+ List<Cita> findByPacienteAndHorarioBetweenExcludingId(
+     @Param("paciente") String paciente,
+     @Param("inicio") LocalDateTime inicio,
+     @Param("fin") LocalDateTime fin,
+     @Param("excludeId") Long excludeId);
+
+ @Query("SELECT COUNT(c) FROM Cita c WHERE " +
+        "c.doctor = :doctor AND " +
+        "DATE(c.horarioConsulta) = :fecha AND " +
+        "c.id != :excludeId")
+ Long countByDoctorAndFechaExcludingId(
+     @Param("doctor") Doctor doctor,
+     @Param("fecha") LocalDate fecha,
+     @Param("excludeId") Long excludeId);
+
 }

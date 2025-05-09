@@ -64,8 +64,15 @@
                 <td th:text="'Consultorio ' + ${cita.consultorio.numeroConsultorio} + ' - Piso ' + ${cita.consultorio.piso}"></td>
                 <td th:text="${#temporals.format(cita.horarioConsulta, 'dd/MM/yyyy HH:mm')}"></td>
                 <td>
-                    <a th:href="@{/citas/editar/{id}(id=${cita.id})}" class="btn btn-sm btn-warning">Editar</a>
-                    <a th:href="@{/citas/eliminar/{id}(id=${cita.id})}" class="btn btn-sm btn-danger">Cancelar</a>
+                    <a  th:href="@{/citas/editar/{id}(id=${cita.id})}" class="btn btn-sm btn-warning">Editar</a>
+                    <a  th:if="${cita.horarioConsulta.isAfter(T(java.time.LocalDateTime).now())}"
+                        th:href="@{/citas/cancelar/{id}(id=${cita.id})}" 
+                        class="btn btn-sm btn-danger"
+                        onclick="return confirm('¿Estás seguro de cancelar esta cita?')">
+                        Cancelar
+                    </a>
+                    <span th:unless="${cita.horarioConsulta.isAfter(T(java.time.LocalDateTime).now())}"
+                        class="text-muted">No cancelable</span>
                 </td>
             </tr>
         </tbody>
